@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,6 +65,7 @@ public class HttpProxyCacheServer {
     private final Thread waitConnectionThread;
     private final Config config;
     private final Pinger pinger;
+    private final Map<String, String> urlToKey = new HashMap<>();
 
     public HttpProxyCacheServer(Context context) {
         this(new Builder(context).buildConfig());
@@ -91,21 +93,6 @@ public class HttpProxyCacheServer {
     /**
      * Returns url that wrap original url and should be used for client (MediaPlayer, ExoPlayer, etc).
      * <p>
-     * If file for this url is fully cached (it means method {@link #isCached(String)} returns {@code true})
-     * then file:// uri to cached file will be returned.
-     * <p>
-     * Calling this method has same effect as calling {@link #getProxyUrl(String, boolean)} with 2nd parameter set to {@code true}.
-     *
-     * @param url a url to file that should be cached.
-     * @return a wrapped by proxy url if file is not fully cached or url pointed to cache file otherwise.
-     */
-    public String getProxyUrl(String url) {
-        return getProxyUrl(url, true);
-    }
-
-    /**
-     * Returns url that wrap original url and should be used for client (MediaPlayer, ExoPlayer, etc).
-     * <p>
      * If parameter {@code allowCachedFileUri} is {@code true} and file for this url is fully cached
      * (it means method {@link #isCached(String)} returns {@code true}) then file:// uri to cached file will be returned.
      *
@@ -113,12 +100,13 @@ public class HttpProxyCacheServer {
      * @param allowCachedFileUri {@code true} if allow to return file:// uri if url is fully cached
      * @return a wrapped by proxy url if file is not fully cached or url pointed to cache file otherwise (if {@code allowCachedFileUri} is {@code true}).
      */
-    public String getProxyUrl(String url, boolean allowCachedFileUri) {
-        if (allowCachedFileUri && isCached(url)) {
-            File cacheFile = getCacheFile(url);
+    public String getProxyUrl(String key, String url, boolean allowCachedFileUri) {
+        if (allowCachedFileUri && isCached(key)) {
+            File cacheFile = config.generateCacheFile(key);
             touchFileSafely(cacheFile);
             return Uri.fromFile(cacheFile).toString();
         }
+        urlToKey.put(url, key);
         return isAlive() ? appendToProxyUrl(url) : url;
     }
 
@@ -154,14 +142,14 @@ public class HttpProxyCacheServer {
     }
 
     /**
-     * Checks is cache contains fully cached file for particular url.
+     * Checks whether cache contains fully cached file for particular key.
      *
-     * @param url an url cache file will be checked for.
-     * @return {@code true} if cache contains fully cached file for passed in parameters url.
+     * @param key an url cache file will be checked for.
+     * @return {@code true} if cache contains fully cached file for passed key.
      */
-    public boolean isCached(String url) {
-        checkNotNull(url, "Url can't be null!");
-        return getCacheFile(url).exists();
+    public boolean isCached(String key) {
+        checkNotNull(key, "Key can't be null!");
+        return config.generateCacheFile(key).exists();
     }
 
     public void shutdown() {
@@ -187,12 +175,6 @@ public class HttpProxyCacheServer {
 
     private String appendToProxyUrl(String url) {
         return String.format(Locale.US, "http://%s:%d/%s", PROXY_HOST, port, ProxyCacheUtils.encode(url));
-    }
-
-    private File getCacheFile(String url) {
-        File cacheDir = config.cacheRoot;
-        String fileName = config.fileNameGenerator.generate(url);
-        return new File(cacheDir, fileName);
     }
 
     private void touchFileSafely(File cacheFile) {
@@ -251,7 +233,7 @@ public class HttpProxyCacheServer {
         synchronized (clientsLock) {
             HttpProxyCacheServerClients clients = clientsMap.get(url);
             if (clients == null) {
-                clients = new HttpProxyCacheServerClients(url, config);
+                clients = new HttpProxyCacheServerClients(urlToKey.get(url), url, config);
                 clientsMap.put(url, clients);
             }
             return clients;

@@ -28,9 +28,8 @@ class Config {
         this.headerInjector = headerInjector;
     }
 
-    File generateCacheFile(String url) {
-        String name = fileNameGenerator.generate(url);
-        return new File(cacheRoot, name);
+    File generateCacheFile(String key) {
+        return new File(cacheRoot, key);
     }
 
 }

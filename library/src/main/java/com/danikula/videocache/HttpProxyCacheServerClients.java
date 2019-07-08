@@ -23,13 +23,15 @@ import static com.danikula.videocache.Preconditions.checkNotNull;
 final class HttpProxyCacheServerClients {
 
     private final AtomicInteger clientsCount = new AtomicInteger(0);
+    private final String key;
     private final String url;
     private volatile HttpProxyCache proxyCache;
     private final List<CacheListener> listeners = new CopyOnWriteArrayList<>();
     private final CacheListener uiCacheListener;
     private final Config config;
 
-    public HttpProxyCacheServerClients(String url, Config config) {
+    public HttpProxyCacheServerClients(String key, String url, Config config) {
+        this.key = checkNotNull(key);
         this.url = checkNotNull(url);
         this.config = checkNotNull(config);
         this.uiCacheListener = new UiListenerHandler(url, listeners);
@@ -80,7 +82,7 @@ final class HttpProxyCacheServerClients {
 
     private HttpProxyCache newHttpProxyCache() throws ProxyCacheException {
         HttpUrlSource source = new HttpUrlSource(url, config.sourceInfoStorage, config.headerInjector);
-        FileCache cache = new FileCache(config.generateCacheFile(url), config.diskUsage);
+        FileCache cache = new FileCache(config.generateCacheFile(key), config.diskUsage);
         HttpProxyCache httpProxyCache = new HttpProxyCache(source, cache);
         httpProxyCache.registerCacheListener(uiCacheListener);
         return httpProxyCache;
