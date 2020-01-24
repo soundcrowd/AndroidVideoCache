@@ -62,7 +62,7 @@ dependencies {
     testCompile 'org.slf4j:slf4j-simple:1.7.21'
     testCompile 'junit:junit:4.12'
     testCompile 'org.robolectric:robolectric:3.3.2'
-    testCompile 'com.squareup:fest-android:1.0.0'
+    testCompile 'com.squareup:fest-android:1.0.8'
     testCompile 'com.google.guava:guava-jdk5:17.0'
     testCompile('com.danikula:android-garden:2.1.4') {
         exclude group: 'com.google.android'
